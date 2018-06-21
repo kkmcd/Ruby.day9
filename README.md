@@ -1,270 +1,282 @@
-# Day10 (180621)
+# 18.06.20
+
+## Cloud9
+
+CRUD 코드 다 외우도록! / 
 
 
 
-## 검색
+#### daum_cafe_app  만들기
 
-- 사용자 혹은 개발자가 원하는 데이터를 찾고자 할 때 사용.
-
-- 검색방법
-
-  - 일치
-  - 포함
-  - 범위
-  - ...
-
-- 우리가 그 동안에 검색했던 방법은? **일치**. table에 있는 id와 일치하는 것. 이 컬럼은 인덱싱이 되어 있기 때문에 검색 속도가 매우 빠르고 항상 고유한 값을 가진다.
-
-  - Table에 있는 id로 검색을 할 때에는 Model.find(id)를 사용한다.
-
-- Table에 있는 id값으로 해결하지 못하는 경우?
-
-  - 사용자가 입력했던 값으로 검색해야 하는 경우(`user_name`)
-  - 게시글을 검색하는데, 작성자, 제목으로 검색할 경우
-  - Table에 있는 다른 컬럼으로 검색할 경우에는 `Model.find_by_컬럼명(value)`, `Model.find_by(컬럼명: value)`
-  - `find_by`의 특징: 1개만 검색됨. 일치하는 값이 없는 경우 `nil`값이 됨.
-  - 1개만 검색된다는 것은 결과값에 limit가 1인것을 보고 1개만 출력함을 알 수 있음.
-
-- 추가적인 검색방법: `Model.where(컬럼명: 검색어값)`
-
-  - `User.where(user_name: "Hello")`
-  - `where`의 특징: 검색결과가 여러개 나옴. 위에서 제시한 방법들은 한 개의 결과만을 리턴함.
-  - 결과값이 배열형태. 일치하는 값이 없는 경우에도 **빈 배열**이 나옴.
-  - 주의해야 할 사항은, 배열형태이지 배열은 아님. 하지만, each 등의 배열에 적용되는 함수를 그대로 사용할 수 있음.
-  - 결과값이 비어있는 경우에 `nil?`메소드의 결과값이 `false`로 나옴.
-
-- 포함?
-
-  - 텍스트가 특정 단어/문장을 포함하고 있는가?
-  - `Model.where("컬럼명 LIKE ?","%#{value}%")`
-  - 왜 `Model.where("컬럼명 LIKE '%#{value}%'")`라고 안쓰고 위의 방법처럼 사용할까?
-  - 위의 방법이 되기는 하지만 쓰면 안됨.
-    - SQL Injection(해킹) 이 발생할 수 있음.
-  - `Full text search` 방식으로 더 나은 검색을 할 수 있음.
-
-- where에서 nil을 검색하는 방법
-
-  - length의 사용
-  - u = User.where(user_id: "zxcv") 
-    - u.empty? 로 검색
-
-- set_post 함수 선언
-
-  ```ruby
-  def set_post
-    @post = Post.find(params[:id])
-  end
-  ```
-
-  ```ruby
-    def update
-      set_post
-      #@post= Post.find(params[:id])
-      @post.title = params[:title]
-      @post.contents = params[:contents]
-      @post.save
-      redirect_to "/board/#{post.id}"
-    end
-  ```
-
-  - 위와같이 사용하는게 어떤점이 좋은가?
-
-    - filter의 사용!!!
-
-      - 함수 사용에 대한 요청이 들어왔을 때만 사용가능하게 함.
-
-        ```ruby
-        before_action :set_post, only: [:show, :edit, :update, :destroy]
-        ```
-
-        ```ruby
-        before_action :set_post, except: [:index, :new, :create] #except에 있는거 빼고 set_post를 설정해라
-        ```
-
-        ```ruby
-          def show
-          end
-        ```
-
-        ```ruby
-          def update
-            @post.title = params[:title]
-            @post.contents = params[:contents]
-            @post.save
-            redirect_to "/board/#{post.id}"
-          end
-        ```
-
-      - before_action을 통해 위와같이 함수선언을 간단하게 할 수 있다!
-
-- ! : Bang으로 읽음. 내가 의도하지않은 액션이 발생할 때 쓰는 메소드. 
-
-
-
-#### application_controller.rb
+- controller ( 이름 : board) / model ( 이름 : post) 에서 method 사용하기 + 필터
+- Session(Login)
+- Relation(1:n) - m:n 은 가능하면 구현.
+  - 내 유저가 여러개의 글을 쓸 수 있도록
+  - 
 
 ```ruby
-class ApplicationController < ActionController::Base
-  protect_from_forgery with: :exception
-  helper_method :user_signed_in? # ?는 true or false 반환하게함.
-  # 현재 로그인 된 상태니?
-  def user_signed_in?
-    #session[:user_id].nil?  #아래는 nil과 반대
-    session[:user_id].present?  
-  #else
-    #redirect_to '/sign_in'
-    #end
-  #session[:user_id].present?
-  end
-  
-  #로그인 되어있지 않으면 로그인하는 페이지로 이동시켜라
-  def authenticate_user!
-    unless user_signed_in?
-      redirect_to '/sign_in'
-    end
-  end
-  
-  # 현재 로그인 된 사람이 누구니?
-  # 로그인 되어 있지 않으면 로그인하는 페이지로 이동 시켜줘
-  def current_user
-    # 현재 로그인됐니?
-    if user_signed_in?
-        # 됐다면 로그인 한 사람은 누구니?
-        @current_user = User.find(session[:user_id])
+# 전체 흐름도
+
+$ cd
+$ rails _5.0.6_ new daum_cafe_app
+$ cd daum_cafe_app
+$ rails g model post
+# 20180620003908_create_posts.rb  # 수정
+$ rails g controller board index show new edit
+
+# routes.rb 수정
+# board_controller 수정
+
+view 파일 index -> show -> new -> edit
+
+서버 생성 오류 pending 오류
+
+rake db:migrate
+
+실행
+
++ 간단과제
+
+```
+
+##### 20180620003908_create_posts.rb
+
+```ruby
+class CreatePosts < ActiveRecord::Migration[5.0]
+  def change
+    create_table :posts do |t|
+
+      t.string :title
+      t.text   :contents
+      t.timestamps
     end
   end
 end
 ```
 
-- helper method와 view helper, form helper는 개념이 서로 조금 다름
+rails g controller board index show new edit
 
 
 
-#### board_controller.rb
+routes.rb + put과 patch의 차이
 
 ```ruby
-class BoardController < ApplicationController
-  before_action :set_post, only: [:show, :edit, :update, :destroy]
-  #before_action :set_post, except: [:index, :new, :create] #except에 있는거 빼고 set_post를 설정해라
-  # 로그인 된 상태에서만 접속할 수 있는 페이지는?
-  # index, show만 로그인 하지 않은 상태에서 볼 수 있게
-  # 나머지는 반드시 로그인이 필요하게
-  before_action :authenticate_user!, except: [:index, :show]
+Rails.application.routes.draw do
+    root 'board#index'
+    get '/boards'           => 'board#index' # 전체목록 보기
+    get '/board/new'        => 'board#new'      # :id 가 먼저오면 /new 를 파라미터로 보고 오류날 수 있음.
+    get '/board/:id'        => 'board#show'     # board의 글 하나로 오면 show 액션으로 가고
+    post '/boards'          => 'board#create'   #
+    get '/board/:id/edit'   => 'board#edit' # 수정하기
+
+    put '/board/:id'        => 'board#update'  # 둘다 수정이지만, put 은 전체 수정
+    patch '/board/:id'      => 'board#update'   # patch는 부분 수정 
+    # 똑같은 모양이지만 요청 방식이 다름.
+    delete '/board/:id'     => 'board#destroy'
+    # 가장 restful 하게 짜여진 라우팅.
+    # '/board/:id' 가 get / put / patch 
+end
+```
+
+
+
+board_controller.rb
+
+```ruby
+
+```
+
+
+
+
+
+view 파일 index -> show -> new -> edit
+
+
+
+서버 생성 오류 pending 오류
+
+
+
+rake db:migrate
+
+
+
+
+
+
+
+
+
+
+
+------
+
+간단과제(CRUD 두 개 만들기)
+
+- BoardController는 완성함.
+
+- User 모델과 UserController CRUD
+  - columns: id, password, ip_address
+  - show에서는 id와 ip_address만 보이게 (pw 제외)
+  - delete 없음
+  - /user/new -> /sign_up
+- Cafe 모델과 CafeController CRUD
+  - columns: title, description
+- View 까지
+  - bootstrap4
+
+```ruby
+rails g model user
+rails g controller user
+```
+
+
+
+### routes.rb
+
+```ruby
+Rails.application.routes.draw do
+    root 'board#index'
+    get '/boards' => 'board#index'
+    get '/board/new' => 'board#new'
+    get '/board/:id' => 'board#show'
+    post '/boards' => 'board#create'
+    get '/board/:id/edit' => 'board#edit'
+    put '/board/:id' => 'board#update'
+    patch '/board/:id' => 'board#update'
+    delete '/board/:id' => 'board#destroy'
+  # For details on the DSL available within this file, see http://guides.rubyonrails.org/routing.html
+  
+    get '/users' => 'user#index'
+    get '/sign_up' => 'user#new'
+    get '/user/:id' => 'user#show'
+    post '/users' => 'user#create'
+    get '/user/:id/edit' => 'user#edit'
+    put '/user/:id' => 'user#update'
+    patch '/user/:id' => 'user#update'
+end
+```
+
+
+
+### model(user)
+
+```ruby
+class CreateUsers < ActiveRecord::Migration[5.0]
+  def change
+    create_table :users do |t|
+      t.string :user_id
+      t.string :password
+      t.string :ip_address
+      t.timestamps
+    end
+  end
+end
+```
+
+
+
+### user_controller.rb
+
+```ruby
+class UserController < ApplicationController
   def index
-    @posts = Post.all
-    @current_user = current_user
+    @users = User.all
   end
 
   def show
-    #@post = Post.find(params[:id])
-    #set_post
-    #puts @post
+    @user = User.find(params[:id])
   end
 
   def new
- 
   end
 
   def create
-    post = Post.new
-    post.title = params[:title]
-    post.contents = params[:contents]
-    post.user_id = current_user.id
-    post.save
-    # post를 등록할 때 이 글을 작성한 사람은
-    # 현재 로그인 되어있는 유저이다.
-    
-    redirect_to "/board/#{post.id}"
-  end
-
-  def edit
-     #set_post
+    user = User.new
+    user.user_id = params[:user_id]
+    user.password = params[:password]
+    user.ip_address = request.ip
+    user.save
+    redirect_to "/user/#{user.id}"
   end
   
   def update
-    #set_post
-    #@post= Post.find(params[:id])
-    @post.title = params[:title]
-    @post.contents = params[:contents]
-    @post.save
-    redirect_to "/board/#{post.id}"
-  end
-  
-  def destroy
-    #set_post
-    #@post=Post.find(params[:id])
-    @post.destroy
-    redirect_to '/boards'
+    user = User.find(params[:id])
+    user.password = params[:password]
+    user.save
+    redirect_to "/user/#{user.id}"
   end
 
-def set_post
-  @post = Post.find(params[:id])
-end
-    
+  def edit
+    @user = User.find(params[:id])
+  end
 end
 ```
 
 
 
-#### views > board > index.html.erb
+### index.html.erb
 
 ```ruby
-<% unless user_signed_in? %>
-<!-- 로그인 되지 않은 상태 -->
-<%=link_to '로그인', '/sign_in' %>
-<% else %>
-<!-- 로그인 된 상태 -->
-<p>현재 로그인 된 유저:<%=@current_user.user_id %></p>
-<%= link_to '로그아웃','/logout'%>
-<% end %>
 <div>
     <% @posts.each do |post| %>
     <a href = "/board/<%= post.id%>"><%= post.title %></a>
     <%end%>
 </div>
 <%= link_to "새글쓰기", "/board/new"%>
-<%= link_to "회원가입하기", "/sign_up"%>
+<%= link_to "회원가입하기", "/user/new"%>
 ```
+
+
+
+### new.html.erb
 
 ```ruby
-<% unless user_signed_in? %>
+<div>
+    <% @posts.each do |post| %>
+    <a href = "/board/<%= post.id%>"><%= post.title %></a>
+    <%end%>
+</div>
+<%= link_to "새글쓰기", "/board/new"%>
+<%= link_to "회원가입하기", "/user/new"%>
 ```
 
-- controller view... 사이클은 순서대로 돌기때문에 컨트롤단을 한 번 지나가면 view에서 다시 controller부분으로 돌아갈 수 없음. 따라서 정의되지 않은 함수라고 뜸
 
-- application_controller에 helper_method :user_signed_in? 를 선언함으로서 위의 문제를 해결할 수있음. 즉, 예외를 만들어준다는 말임.
 
-#### views > user > show.html.erb
+### 
+
+### 쿠키와 세션
+
+쿠키는 정보를 client가 갖고있음		
+
+세션에서 server는 client의 session-id를 통해 정보의 위치를 저장
+
+
+
+
+
+
+
+
+
+find_by_user_id(params[:user_id])  user_id로 찾을땐 find_by_user_id!
+
+
+
+session[:user_id] = user.id 이 사람의 고유번호, 몇번째로 가입했는지를 넣어둠
+
+session은 계속 정보를 유지할 수 잇는 방안임
+
+session.delete(:user_id) : 로그아웃 할 때, session을 지움으로서 해결함
+
+# 에러
 
 ```ruby
-<h2><%= @user.user_id%></h2>
-<hr>
-<p>LAST LOGIN AT: <%= @user.ip_address %></p>
-<p>이 유저가 작성한 글</p>
-<% @user.posts.each do |post| %>
-    <%= link_to post.title, "/board/#{post.id}" %><br>
-<% end %>
+@post / post 구별 할것!!!
+
+# 완성된 코드를 순서대로 차근차근 곱 씹어볼것 
 ```
 
 
-
-### relation (1:n relation 구성)
-
-#### models > post.rb
-
-```ruby
-class Post < ApplicationRecord
-    belongs_to :user
-end
-```
-
-#### models > user.rb
-
-```ruby
-class User < ApplicationRecord
-    has_many :posts
-end
-```
-
-- model > post.rb & user.rb에 각각 한줄코드를 입력함으로서 간단하게 만들 수 있다
 
